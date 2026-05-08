@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>森のブロックパズル - ジブリ風</title>
+    <style>
+        /* 全体の設定と背景グラデーション */
+        body {
+            margin: 0;
+            padding: 0;
+            background: 
+                radial-gradient(circle at 20% 30%, rgba(255, 255, 255, 0.3) 0%, transparent 60%),
+                linear-gradient(to bottom, #7fb3d5 0%, #b2d5c5 40%, #5c8a5c 100%);
+            font-family: 'Hiragino Maru Gothic ProN', 'Rounded M+ 1c', 'Quicksand', sans-serif;
+            color: #2c3e50;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            touch-action: none; /* スマホでの意図しないスクロール防止 */
+        }
+
+        /* 全体を包むコンテナ */
+        .wrapper {
+            background: rgba(255, 255, 255, 0.4);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+            text-align: center;
+            border: 2px solid rgba(255,255,255,0.6);
+            max-width: 100%;
+            box-sizing: border-box;
+        }
+
+        .title {
+            color: #2e5c31;
+            text-shadow: 2px 2px 4px rgba(255,255,255,0.8);
+            margin: 0 0 20px 0;
+            font-size: 28px;
+            letter-spacing: 2px;
+        }
+
+        .game-area {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            align-items: flex-start;
+        }
+
+        /* サイドパネル（スコア、Nextブロックなど） */
+        .side-panel {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 120px;
+        }
+
+        .info-box {
+            background: #fdf5e6; /* 温かみのあるオフホワイト */
+            border: 3px solid #8b5a2b; /* 木の色 */
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: 2px 2px 5px rgba(0,0,0,0.15);
+        }
+
+        .info-box h2 {
+            margin: 0 0 5px 0;
+            font-size: 14px;
+            color: #5c3a21;
+        }
+
+        .info-box p {
+            margin: 0;
+            font-size: 22px;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .controls-guide {
+            background: rgba(255, 255, 255, 0.6);
+            padding: 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            text-align: left;
+            line-height: 1.5;
+            color: #444;
+        }
+
+        .controls-guide h3 {
+            margin: 0 0 5px 0;
+            font-size: 14px;
+            color: #2e5c31;
+            text-align: center;
+        }
+
+        /* メインのゲーム盤 */
+        .canvas-container {
+            position: relative;
+        }
+
+        canvas {
+            background-color: rgba(25, 40, 25, 0.85); /* 深い森の夜のような色 */
+            border: 4px solid #8b5a2b;
+            border-radius: 8px;
+            box-shadow: inset 0 0 15px rgba(0,0,0,0.8), 0 5px 15px rgba(0,0,0,0.3);
+            display: block;
+        }
+
+        #nextCanvas {
+            background-color: transparent;
+            border: none;
+            box-shadow: none;
+            margin: 0 auto;
+        }
+
+        /* 木札風のボタン */
+        button {
+            background: linear-gradient(to bottom, #a06b3c, #8b5a2b);
+            color: #fff;
+            border: 2px solid #4a2e15;
+            border-radius: 6px;
+            padding: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+            text-shadow: 1px 1px 2px rgba(0,0,0,0.6);
+            font-family: inherit;
+            width: 100%;
+            transition: all 0.1s;
+        }
+
+        button:active {
+            transform: translateY(3px);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        /* オーバーレイ画面（ゲームオーバー、ポーズ） */
+        .overlay {
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(46, 92, 49, 0.8);
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            color: #fff;
+            backdrop-filter: blur(2px);
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 24px;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+        }
+
+        .overlay button {
+            width: 80%;
+        }
+
+        /* モバイル用オンスクリーンコントロール */
+        .mobile-controls {
+            display: none;
+            margin-top: 20px;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        .mobile-controls button {
+            width: 50px;
+            height: 50px;
+            padding: 0;
+            font-size: 20px;
+            border-radius: 50%;
+            background: rgba(255,255,255,0.7);
+            color: #2e5c31;
+            border: 2px solid #2e5c31;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+            text-shadow: none;
+        }
+        
+        .mobile-controls button:active {
+            background: rgba(200,200,200,0.9);
+        }
+
+        /* レスポンシブ対応 */
+        @media (max-width: 600px) {
+            .game-area {
+                flex-direction: column;
+                align-items: center;
+                gap: 10px;
+            }
+            .side-panel {
+                flex-direction: row;
+                width: 100%;
+                justify-content: center;
+                gap: 10px;
+            }
+            .side-panel.left-panel {
+                order: 2; /* スマホではスコアを下に */
+            }
+            .side-panel.right-panel {
+                order: 1; /* Nextを上に */
+            }
+            .controls-guide {
+                display: none;
+            }
+            .info-box {
+                padding: 5px 10px;
+                margin-bottom: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+            }
+            .info-box h2 {
+                font-size: 12px;
+            }
+            .info-box p {
+                font-size: 18px;
+            }
+            #btn-start {
+                padding: 10px;
+            }
+            .mobile-controls {
+                display: flex;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="wrapper">
+    <h1 class="title">森のブロックパズル</h1>
+    
+    <div class="game-area">
+        <!-- 左パネル -->
+        <div class="side-panel left-panel">
+            <div class="info-box">
+                <h2>スコア</h2>
+                <p id="score">0</p>
+            </div>
+            <div class="info-box">
+                <h2>レベル</h2>
+                <p id="level">1</p>
+            </div>
+            <div class="info-box">
+                <h2>ライン</h2>
+                <p id="lines">0</p>
+            </div>
+            <div class="controls-guide">
+                <h3>操作方法</h3>
+                <p>◀ ▶ : 左右移動</p>
+                <p>▲ : 回転</p>
+                <p>▼ : 少し落とす</p>
+                <p>Space : 一気に落とす</p>
+                <p>P : 一時停止</p>
+            </div>
+        </div>
+        
+        <!-- メインキャンバス -->
+        <div class="canvas-container">
+            <canvas id="gameCanvas" width="300" height="600"></canvas>
+            
+            <div id="game-over" class="overlay hidden">
+                <h2>ゲームオーバー</h2>
+                <button onclick="resetGame()">もういちど</button>
+            </div>
+            
+            <div id="pause-screen" class="overlay hidden">
+                <h2>一時停止中</h2>
+                <button onclick="togglePause()">再開する</button>
+            </div>
+        </div>
+        
+        <!-- 右パネル -->
+        <div class="side-panel right-panel">
+            <div class="info-box" style="display: flex; flex-direction: column; align-items: center;">
+                <h2>つぎの石</h2>
+                <canvas id="nextCanvas" width="90" height="90"></canvas>
+            </div>
+            <button id="btn-start" onclick="togglePlay()">スタート</button>
+        </div>
+    </div>
+    
+    <!-- モバイル用コントロール -->
+    <div class="mobile-controls">
+        <button id="m-left">◀</button>
+        <button id="m-rotate">↻</button>
+        <button id="m-right">▶</button>
+        <button id="m-down">▼</button>
+        <button id="m-drop">⏬</button>
+    </div>
+</div>
+
+<script>
+    // --- キャンバスと基本設定 ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const nextCanvas = document.getElementById('nextCanvas');
+    const nextCtx = nextCanvas.getContext('2d');
+
+    const COLS = 10;
+    const ROWS = 20;
+    const BLOCK_SIZE = 30; // ピクセル
+    const NEXT_BLOCK_SIZE = 20;
+
+    // キャンバスのサイズを内部的にスケール（高解像度対応などは省略しシンプルに）
+    ctx.scale(BLOCK_SIZE, BLOCK_SIZE);
+
+    // --- 色と形（ジブリ風のアースカラー＆魔法の色） ---
+    const COLORS = [
+        null,
+        '#5D9B9B', // I: シアン（飛行石風のくすんだ青緑）
+        '#4A6B9C', // J: 青（夜空の色）
+        '#D97D43', // L: オレンジ（レンガ、夕暮れ）
+        '#E5C158', // O: 黄色（麦わら、真鍮）
+        '#5C8A5C', // S: 緑（苔、深い森）
+        '#805C8A', // T: 紫（魔法の結晶）
+        '#C45151'  // Z: 赤（赤い屋根、火）
+    ];
+
+    const SHAPES = [
+        [],
+        [[0,0,0,0], [1,1,1,1], [0,0,0,0], [0,0,0,0]], // I
+        [[2,0,0], [2,2,2], [0,0,0]],                 // J
+        [[0,0,3], [3,3,3], [0,0,0]],                 // L
+        [[4,4], [4,4]],                              // O
+        [[0,5,5], [5,5,0], [0,0,0]],                 // S
+        [[0,6,0], [6,6,6], [0,0,0]],                 // T
+        [[7,7,0], [0,7,7], [0,0,0]]                  // Z
+    ];
+
+    // --- ゲームの状態 ---
+    let board = createMatrix(COLS, ROWS);
+    let player = {
+        pos: {x: 0, y: 0},
+        matrix: null,
+        score: 0,
+        lines: 0,
+        level: 1
+    };
+    let nextMatrix = null;
+    
+    let dropCounter = 0;
+    let dropInterval = 1000;
+    let lastTime = 0;
+    let animationId = null;
+    let isPlaying = false;
+    let isPaused = false;
+    let isGameOver = false;
+
+    // --- 描画ユーティリティ ---
+    
+    // 石（ブロック）を立体的・魔法的に描画する関数
+    function drawBlock(context, x, y, colorId, size = 1) {
+        if (colorId === 0) return;
+        const color = COLORS[colorId];
+        
+        // ベースの塗りつぶし
+        context.fillStyle = color;
+        context.fillRect(x, y, size, size);
+        
+        const h = size * 0.15; // ハイライト/シャドウの太さ
+        
+        // 上ハイライト（光が当たっている感じ）
+        context.fillStyle = 'rgba(255, 255, 255, 0.4)';
+        context.beginPath();
+        context.moveTo(x, y);
+        context.lineTo(x + size, y);
+        context.lineTo(x + size - h, y + h);
+        context.lineTo(x + h, y + h);
+        context.fill();
+        
+        // 左ハイライト
+        context.fillStyle = 'rgba(255, 255, 255, 0.2)';
+        context.beginPath();
+        context.moveTo(x, y);
+        context.lineTo(x + h, y + h);
+        context.lineTo(x + h, y + size - h);
+        context.lineTo(x, y + size);
+        context.fill();
+        
+        // 右シャドウ
+        context.fillStyle = 'rgba(0, 0, 0, 0.2)';
+        context.beginPath();
+        context.moveTo(x + size, y);
+        context.lineTo(x + size, y + size);
+        context.lineTo(x + size - h, y + size - h);
+        context.lineTo(x + size - h, y + h);
+        context.fill();
+        
+        // 下シャドウ
+        context.fillStyle = 'rgba(0, 0, 0, 0.4)';
+        context.beginPath();
+        context.moveTo(x, y + size);
+        context.lineTo(x + size, y + size);
+        context.lineTo(x + size - h, y + size - h);
+        context.lineTo(x + h, y + size - h);
+        context.fill();
+        
+        // 境界線（少し暗い色で引き締める）
+        context.strokeStyle = 'rgba(0, 0, 0, 0.5)';
+        context.lineWidth = size * 0.05;
+        context.strokeRect(x, y, size, size);
+    }
+
+    function createMatrix(w, h) {
+        const matrix = [];
+        while (h--) {
+            matrix.push(new Array(w).fill(0));
+        }
+        return matrix;
+    }
+
+    // 盤面と操作中のピースを描画
+    function draw() {
+        // 背景クリア
+        ctx.fillStyle = 'rgba(25, 40, 25, 1)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // 盤面のブロックを描画
+        drawMatrix(board, {x: 0, y: 0}, ctx, 1);
+        
+        // 落下中のブロックを描画
+        if (player.matrix) {
+            drawMatrix(player.matrix, player.pos, ctx, 1);
+        }
+    }
+
+    function drawMatrix(matrix, offset, context, scale) {
+        matrix.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value !== 0) {
+                    drawBlock(context, x + offset.x, y + offset.y, value, scale);
+                }
+            });
+        });
+    }
+
+    // Nextブロックの描画
+    function drawNext() {
+        nextCtx.clearRect(0, 0, nextCanvas.width, nextCanvas.height);
+        if (!nextMatrix) return;
+
+        // 中央に配置するためのオフセット計算
+        const blockW = nextMatrix[0].length * NEXT_BLOCK_SIZE;
+        const blockH = nextMatrix.length * NEXT_BLOCK_SIZE;
+        const offsetX = (nextCanvas.width - blockW) / 2;
+        const offsetY = (nextCanvas.height - blockH) / 2;
+
+        nextMatrix.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value !== 0) {
+                    drawBlock(
+                        nextCtx, 
+                        offsetX + x * NEXT_BLOCK_SIZE, 
+                        offsetY + y * NEXT_BLOCK_SIZE, 
+                        value, 
+                        NEXT_BLOCK_SIZE
+                    );
+                }
+            });
+        });
+    }
+
+    // --- ゲームロジック ---
+
+    // 衝突判定
+    function collide(board, player) {
+        const m = player.matrix;
+        const o = player.pos;
+        for (let y = 0; y < m.length; ++y) {
+            for (let x = 0; x < m[y].length; ++x) {
+                if (m[y][x] !== 0 &&
+                   (board[y + o.y] && board[y + o.y][x + o.x]) !== 0) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    // 盤面にブロックを固定
+    function merge(board, player) {
+        player.matrix.forEach((row, y) => {
+            row.forEach((value, x) => {
+                if (value !== 0) {
+                    board[y + player.pos.y][x + player.pos.x] = value;
+                }
+            });
+        });
+    }
+
+    // ランダムなブロックを生成
+    function createPiece() {
+        const index = Math.floor(Math.random() * 7) + 1;
+        // 参照渡しを防ぐためディープコピー
+        return JSON.parse(JSON.stringify(SHAPES[index]));
+    }
+
+    // 次のブロックをセット
+    function playerReset() {
+        if (!nextMatrix) {
+            nextMatrix = createPiece();
+        }
+        player.matrix = nextMatrix;
+        nextMatrix = createPiece();
+        drawNext();
+
+        player.pos.y = 0;
+        player.pos.x = Math.floor(COLS / 2) - Math.floor(player.matrix[0].length / 2);
+
+        // 出現した瞬間に衝突していたらゲームオーバー
+        if (collide(board, player)) {
+            gameOver();
+        }
+    }
+
+    // 落下処理
+    function playerDrop() {
+        player.pos.y++;
+        if (collide(board, player)) {
+            player.pos.y--;
+            merge(board, player);
+            playerReset();
+            arenaSweep();
+            updateScoreDisplay();
+        }
+        dropCounter = 0;
+    }
+
+    // ハードドロップ（一気に落とす）
+    function playerHardDrop() {
+        while (!collide(board, player)) {
+            player.pos.y++;
+        }
+        player.pos.y--;
+        merge(board, player);
+        playerReset();
+        arenaSweep();
+        updateScoreDisplay();
+        dropCounter = 0;
+    }
+
+    // 左右移動
+    function playerMove(offset) {
+        player.pos.x += offset;
+        if (collide(board, player)) {
+            player.pos.x -= offset;
+        }
+    }
+
+    // 回転
+    function playerRotate() {
+        const pos = player.pos.x;
+        let offset = 1;
+        rotate(player.matrix);
+        // 壁蹴り（壁にめり込んだら押し出す）
+        while (collide(board, player)) {
+            player.pos.x += offset;
+            offset = -(offset + (offset > 0 ? 1 : -1));
+            if (offset > player.matrix[0].length) {
+                rotate(player.matrix, -1); // 回転戻す
+                player.pos.x = pos;
+                return;
+            }
+        }
+    }
+
+    // 行列の回転処理
+    function rotate(matrix, dir = 1) {
+        for (let y = 0; y < matrix.length; ++y) {
+            for (let x = 0; x < y; ++x) {
+                [matrix[x][y], matrix[y][x]] = [matrix[y][x], matrix[x][y]];
+            }
+        }
+        if (dir > 0) {
+            matrix.forEach(row => row.reverse());
+        } else {
+            matrix.reverse();
+        }
+    }
+
+    // 行が揃ったかの判定と消去
+    function arenaSweep() {
+        let rowCount = 0;
+        outer: for (let y = board.length - 1; y >= 0; --y) {
+            for (let x = 0; x < board[y].length; ++x) {
+                if (board[y][x] === 0) {
+                    continue outer;
+                }
+            }
+            // 行が全て埋まっていたら
+            const row = board.splice(y, 1)[0].fill(0);
+            board.unshift(row);
+            ++y;
+            rowCount++;
+        }
+
+        if (rowCount > 0) {
+            // ジブリ風に、たくさん消すとボーナスが大きくなる
+            const baseScore = [0, 100, 300, 500, 800];
+            player.score += baseScore[rowCount] * player.level;
+            player.lines += rowCount;
+            
+            // 10ラインごとにレベルアップ、落下速度アップ
+            player.level = Math.floor(player.lines / 10) + 1;
+            dropInterval = Math.max(100, 1000 - (player.level - 1) * 80);
+        }
+    }
+
+    function updateScoreDisplay() {
+        document.getElementById('score').innerText = player.score;
+        document.getElementById('lines').innerText = player.lines;
+        document.getElementById('level').innerText = player.level;
+    }
+
+    // --- メインループと状態管理 ---
+
+    function update(time = 0) {
+        if (isPaused || isGameOver || !isPlaying) return;
+
+        const deltaTime = time - lastTime;
+        lastTime = time;
+
+        dropCounter += deltaTime;
+        if (dropCounter > dropInterval) {
+            playerDrop();
+        }
+
+        draw();
+        animationId = requestAnimationFrame(update);
+    }
+
+    function startGame() {
+        board = createMatrix(COLS, ROWS);
+        player.score = 0;
+        player.lines = 0;
+        player.level = 1;
+        dropInterval = 1000;
+        updateScoreDisplay();
+        
+        isGameOver = false;
+        isPaused = false;
+        isPlaying = true;
+        
+        document.getElementById('game-over').classList.add('hidden');
+        document.getElementById('pause-screen').classList.add('hidden');
+        document.getElementById('btn-start').innerText = 'リセット';
+        
+        nextMatrix = null;
+        playerReset();
+        
+        lastTime = performance.now();
+        if (animationId) cancelAnimationFrame(animationId);
+        update();
+    }
+
+    function resetGame() {
+        startGame();
+    }
+
+    function togglePlay() {
+        if (!isPlaying || isGameOver) {
+            startGame();
+        } else {
+            // プレイ中ならリセット確認の代わりに即リセット
+            startGame();
+        }
+    }
+
+    function togglePause() {
+        if (!isPlaying || isGameOver) return;
+        
+        isPaused = !isPaused;
+        const pauseScreen = document.getElementById('pause-screen');
+        
+        if (isPaused) {
+            pauseScreen.classList.remove('hidden');
+            if (animationId) cancelAnimationFrame(animationId);
+        } else {
+            pauseScreen.classList.add('hidden');
+            lastTime = performance.now();
+            update();
+        }
+    }
+
+    function gameOver() {
+        isGameOver = true;
+        isPlaying = false;
+        document.getElementById('game-over').classList.remove('hidden');
+        document.getElementById('btn-start').innerText = 'スタート';
+        if (animationId) cancelAnimationFrame(animationId);
+    }
+
+    // --- 入力制御 ---
+
+    // キーボード
+    document.addEventListener('keydown', event => {
+        if (!isPlaying || isGameOver) return;
+        
+        if (event.keyCode === 80) { // 'P' key
+            togglePause();
+            return;
+        }
+
+        if (isPaused) return;
+
+        switch (event.keyCode) {
+            case 37: // Left
+                playerMove(-1);
+                break;
+            case 39: // Right
+                playerMove(1);
+                break;
+            case 40: // Down
+                playerDrop();
+                break;
+            case 38: // Up
+                playerRotate();
+                break;
+            case 32: // Space
+                playerHardDrop();
+                break;
+        }
+        draw();
+    });
+
+    // モバイル用ボタンイベント設定（長押し連打などは簡略化のため省略）
+    function addTouchAndClick(id, callback) {
+        const btn = document.getElementById(id);
+        const handler = (e) => {
+            e.preventDefault(); // ダブルタップズームなどを防止
+            if (isPlaying && !isPaused && !isGameOver) {
+                callback();
+                draw();
+            }
+        };
+        btn.addEventListener('touchstart', handler, {passive: false});
+        btn.addEventListener('mousedown', handler);
+    }
+
+    addTouchAndClick('m-left', () => playerMove(-1));
+    addTouchAndClick('m-right', () => playerMove(1));
+    addTouchAndClick('m-down', () => playerDrop());
+    addTouchAndClick('m-rotate', () => playerRotate());
+    addTouchAndClick('m-drop', () => playerHardDrop());
+
+    // 初期描画
+    draw();
+
+</script>
+</body>
+</html>
